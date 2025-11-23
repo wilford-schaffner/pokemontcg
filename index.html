@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Card Manager</title>
+    <meta name="description" content="Collect, organize, and progress through Pokémon card collections.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles/variables.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/utilities.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="container header-content">
+            <div class="logo">
+                <h1>Pokémon Manager</h1>
+            </div>
+            <nav class="main-nav">
+                <!-- Future nav items will go here -->
+                <!-- <a href="#" class="active">Browse</a> -->
+            </nav>
+            <div class="user-actions">
+                <!-- Placeholder for user actions -->
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <section class="filters-section">
+            <div class="container">
+                <div class="filters-container" id="filters-container">
+                    <!-- Filters will be injected here by JS -->
+                    <div class="search-wrapper">
+                        <input type="text" id="search-input" placeholder="Search Pokémon..." class="input-search">
+                    </div>
+                    <div class="select-wrapper">
+                        <select id="set-select" class="input-select">
+                            <option value="">All Sets</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <select id="type-select" class="input-select">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cards-section">
+            <div class="container">
+                <div id="cards-grid" class="cards-grid">
+                    <!-- Cards will be injected here by JS -->
+                </div>
+                <div id="loading-indicator" class="loading-indicator hidden">
+                    <div class="spinner"></div>
+                    <p>Loading cards...</p>
+                </div>
+                <div class="pagination-actions">
+                    <button id="load-more-btn" class="btn btn-primary hidden">Load More</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">
+            <p>&copy; 2025 Pokémon Card Manager. Data provided by Pokémon TCG API.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
+
