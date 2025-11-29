@@ -1,72 +1,80 @@
-import { API_BASE_URL, DEFAULT_PAGE_SIZE } from './config.js';
-import { transformCard } from './models.js';
+const BASE_URL = 'https://api.tcgdex.net/v2/en';
 
-// NOTE: Add your API Key here if you have one to increase rate limits
-const API_KEY = null; 
-
-const headers = {
-    'Content-Type': 'application/json',
-};
-
-if (API_KEY) {
-    headers['X-Api-Key'] = API_KEY;
-}
-
-export async function fetchCards({ page = 1, pageSize = DEFAULT_PAGE_SIZE, query = '' } = {}) {
-    const params = new URLSearchParams({
-        page,
-        pageSize,
-        q: query,
-        orderBy: '-set.releaseDate', // Show newest cards first by default
-        select: 'id,name,images,set,types,rarity,number,supertype,subtypes,artist,tcgplayer,cardmarket'
-    });
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/cards?${params}`, { headers });
-        
-        if (response.status === 429) {
-             throw new Error('Rate limit exceeded. Please try again later.');
-        }
-        
-        if (!response.ok) {
-            throw new Error(`API Error: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        return {
-            data: data.data.map(transformCard),
-            page: data.page,
-            pageSize: data.pageSize,
-            count: data.count,
-            totalCount: data.totalCount
-        };
-    } catch (error) {
-        console.error('Error fetching cards:', error);
-        throw error;
-    }
-}
-
+/**
+ * Fetch all sets
+ * @returns {Promise<Array>} List of sets
+ */
 export async function fetchSets() {
-     try {
-        const response = await fetch(`${API_BASE_URL}/sets`, { headers });
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        const data = await response.json();
-        return data.data; 
+    try {
+        const response = await fetch(`${BASE_URL}/sets`);
+        if (!response.ok) throw new Error('Failed to fetch sets');
+        return await response.json();
     } catch (error) {
         console.error('Error fetching sets:', error);
-        throw error;
+        return [];
     }
 }
 
-export async function fetchTypes() {
-     try {
-        const response = await fetch(`${API_BASE_URL}/types`, { headers });
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        const data = await response.json();
-        return data.data;
+/**
+ * Fetch cards with optional filters
+ * @param {Object} filters - { set, rarity, name }
+ * @returns {Promise<Array>} List of cards
+ */
+export async function fetchCards(filters = {}) {
+    try {
+        let cards = [];
+
+        if (filters.set) {
+            const url = `${BASE_URL}/sets/${filters.set}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch set cards');
+            const data = await response.json();
+            cards = data.cards || [];
+        } else {
+            const url = `${BASE_URL}/cards`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch cards');
+            cards = await response.json();
+        }
+
+        // Filter out cards without images or with weird IDs
+        cards = cards.filter(card => card.image && !card.localId.includes('!') && !card.localId.includes('?'));
+
+        if (filters.name) {
+            const term = filters.name.toLowerCase();
+            cards = cards.filter(card => card.name.toLowerCase().includes(term));
+        }
+
+        const slicedCards = cards.slice(0, 20); // Limit to 20 for performance and detail fetching
+
+        // Fetch details for each card to get Type and Rarity
+        const detailedCards = await Promise.all(slicedCards.map(async (card) => {
+            try {
+                return await fetchCardDetails(card.id);
+            } catch (e) {
+                console.error(`Failed to fetch details for ${card.id}`, e);
+                return null;
+            }
+        }));
+
+        return detailedCards.filter(c => c !== null);
     } catch (error) {
-        console.error('Error fetching types:', error);
-        throw error;
+        console.error('Error fetching cards:', error);
+        return [];
     }
 }
 
+/**
+ * Fetch single card details
+ * @param {string} id 
+ */
+export async function fetchCardDetails(id) {
+    try {
+        const response = await fetch(`${BASE_URL}/cards/${id}`);
+        if (!response.ok) throw new Error('Failed to fetch card details');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching card details:', error);
+        return null;
+    }
+}

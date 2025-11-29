@@ -1,138 +1,85 @@
-import { fetchCards, fetchSets, fetchTypes } from './api.js';
-import { 
-    renderCards, 
-    clearCards, 
-    renderSetOptions, 
-    renderTypeOptions, 
-    toggleLoading, 
-    toggleLoadMore 
-} from './ui.js';
-import { DEFAULT_PAGE_SIZE } from './config.js';
+import { fetchCards, fetchSets } from './api.js';
+import { renderCardList, renderSetOptions, showLoading } from './ui.js';
 
 // State
-let state = {
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
-    query: '', 
+const state = {
+    cards: [],
+    sets: [],
     filters: {
-        search: '',
+        name: '',
         set: '',
-        type: ''
-    },
-    isLoading: false,
-    hasMore: true
+        rarity: ''
+    }
 };
 
 // DOM Elements
-const elements = {
-    cardsGrid: document.getElementById('cards-grid'),
-    searchInput: document.getElementById('search-input'),
-    setSelect: document.getElementById('set-select'),
-    typeSelect: document.getElementById('type-select'),
-    loadMoreBtn: document.getElementById('load-more-btn'),
-};
+const cardGrid = document.getElementById('card-grid');
+const searchInput = document.getElementById('search-input');
+const setFilter = document.getElementById('set-filter');
+const rarityFilter = document.getElementById('rarity-filter');
 
-// Helper to build the API query string from filters
-function buildQuery() {
-    const parts = [];
-    if (state.filters.search) {
-        parts.push(`name:"*${state.filters.search}*"`); // Wildcard search
-    }
-    if (state.filters.set) {
-        parts.push(state.filters.set);
-    }
-    if (state.filters.type) {
-        parts.push(state.filters.type);
-    }
-    return parts.join(' ');
-}
-
-async function loadCards(reset = false) {
-    if (state.isLoading) return;
-    
-    state.isLoading = true;
-    toggleLoading(true);
-    
-    if (reset) {
-        state.page = 1;
-        state.hasMore = true;
-        clearCards(elements.cardsGrid);
-        toggleLoadMore(false); // Hide while loading first batch
-    }
-
-    const query = buildQuery();
-
-    try {
-        const result = await fetchCards({
-            page: state.page,
-            pageSize: state.pageSize,
-            query: query
-        });
-
-        renderCards(result.data, elements.cardsGrid);
-        
-        // Check if we have more pages
-        // API returns totalCount. 
-        const loadedCount = (state.page - 1) * state.pageSize + result.data.length;
-        state.hasMore = loadedCount < result.totalCount;
-        
-        toggleLoadMore(state.hasMore);
-        state.page++;
-
-    } catch (error) {
-        console.error('Failed to load cards', error);
-        // Optionally show error to user
-        // If reset failed, grid is empty, maybe show error message in grid
-    } finally {
-        state.isLoading = false;
-        toggleLoading(false);
-    }
-}
-
+// Initialization
 async function init() {
-    // Initial Load - Start this immediately
-    const cardsPromise = loadCards(true);
+    showLoading(cardGrid);
 
-    // Load Options - Run in parallel
-    const filtersPromise = (async () => {
-        try {
-            const [sets, types] = await Promise.all([fetchSets(), fetchTypes()]);
-            renderSetOptions(sets, elements.setSelect);
-            renderTypeOptions(types, elements.typeSelect);
-        } catch (error) {
-            console.error('Failed to load filters', error);
-        }
-    })();
+    // Load Sets
+    state.sets = await fetchSets();
+    renderSetOptions(state.sets, setFilter);
+
+    // Load Initial Cards
+    await loadCards();
 
     // Event Listeners
-    
-    // Search (Debounced)
+    setupEventListeners();
+}
+
+async function loadCards() {
+    showLoading(cardGrid);
+    state.cards = await fetchCards(state.filters);
+    renderCardList(state.cards, cardGrid);
+}
+
+function setupEventListeners() {
+    // Search Debounce
     let debounceTimer;
-    elements.searchInput.addEventListener('input', (e) => {
+    searchInput.addEventListener('input', (e) => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            state.filters.search = e.target.value.trim();
-            loadCards(true);
+            state.filters.name = e.target.value;
+            loadCards();
         }, 500);
     });
 
-    // Filters
-    elements.setSelect.addEventListener('change', (e) => {
+    // Set Filter
+    setFilter.addEventListener('change', (e) => {
         state.filters.set = e.target.value;
-        loadCards(true);
+        loadCards();
     });
 
-    elements.typeSelect.addEventListener('change', (e) => {
-        state.filters.type = e.target.value;
-        loadCards(true);
-    });
-
-    // Load More
-    elements.loadMoreBtn.addEventListener('click', () => {
-        loadCards(false);
+    // Rarity Filter - Note: API filtering for rarity might need client side if not supported by endpoint
+    rarityFilter.addEventListener('change', (e) => {
+        state.filters.rarity = e.target.value;
+        // If we are filtering client side for now:
+        // loadCards(); 
+        // But better to re-fetch if possible or filter current state
+        filterCurrentCards();
     });
 }
 
-// Start
-document.addEventListener('DOMContentLoaded', init);
+function filterCurrentCards() {
+    let filtered = state.cards;
 
+    if (state.filters.rarity) {
+        filtered = filtered.filter(card => card.rarity === state.filters.rarity);
+    }
+
+    // Re-apply name filter if needed (though API handles it usually)
+    if (state.filters.name) {
+        filtered = filtered.filter(card => card.name.toLowerCase().includes(state.filters.name.toLowerCase()));
+    }
+
+    renderCardList(filtered, cardGrid);
+}
+
+// Start App
+document.addEventListener('DOMContentLoaded', init);
