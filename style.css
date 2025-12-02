@@ -144,6 +144,7 @@ select {
     cursor: pointer;
     display: flex;
     flex-direction: column;
+    position: relative; /* Added for badge positioning */
 }
 
 .card-item:hover {
@@ -204,4 +205,153 @@ select {
     padding: 3rem;
     color: var(--color-text-muted);
     font-size: 1.25rem;
+}
+
+/* Modal Styles */
+.modal {
+    display: flex; /* Hidden by default via .hidden class, flex when active */
+    position: fixed; 
+    z-index: 1000; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.6); 
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.modal.hidden {
+    display: none;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: auto;
+    padding: 2rem;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 800px;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.close-modal {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    z-index: 10;
+}
+
+.close-modal:hover,
+.close-modal:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Modal Body Layout */
+.modal-detail-view {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+@media (min-width: 640px) {
+    .modal-detail-view {
+        grid-template-columns: 1fr 1.5fr;
+    }
+}
+
+.modal-image-container img {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.modal-info h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #111827;
+}
+
+.modal-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.modal-stat {
+    background: #F3F4F6;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Collection Controls */
+.collection-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn-control {
+    background: #F3F4F6;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.btn-control:hover {
+    background: #E5E7EB;
+}
+
+.quantity-display {
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Owned Indicator on Card Item */
+.card-owned-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #FFD600;
+    color: #000;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 2;
 }

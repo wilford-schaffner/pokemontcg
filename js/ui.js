@@ -2,8 +2,9 @@
  * Render a list of cards to the grid
  * @param {Array} cards 
  * @param {HTMLElement} container 
+ * @param {Object} collectionManager - Optional collection manager instance
  */
-export function renderCardList(cards, container) {
+export function renderCardList(cards, container, collectionManager = null) {
     container.innerHTML = '';
 
     if (cards.length === 0) {
@@ -16,10 +17,7 @@ export function renderCardList(cards, container) {
     cards.forEach(card => {
         const cardEl = document.createElement('div');
         cardEl.className = 'card-item';
-        // TCGDex image extension is usually needed. 
-        // The summary object has 'image' usually as a full URL or we construct it.
-        // Let's check the data shape in runtime or assume standard.
-        // v2 usually provides an image url ending in /high.png or /low.png
+        cardEl.dataset.id = card.id; // Store ID for click handling
 
         const imageUrl = card.image ? `${card.image}/low.png` : 'placeholder.svg';
 
@@ -33,7 +31,17 @@ export function renderCardList(cards, container) {
 
         const types = card.types ? card.types.join(', ') : 'Unknown';
 
+        // Check collection status
+        let ownedBadge = '';
+        if (collectionManager) {
+            const quantity = collectionManager.getQuantity(card.id);
+            if (quantity > 0) {
+                ownedBadge = `<div class="card-owned-badge">Owned: ${quantity}</div>`;
+            }
+        }
+
         cardEl.innerHTML = `
+            ${ownedBadge}
             <div class="card-image-container">
                 <img src="${imageUrl}" alt="${card.name}" class="card-image" loading="lazy">
             </div>
@@ -51,6 +59,68 @@ export function renderCardList(cards, container) {
     });
 
     container.appendChild(fragment);
+}
+
+/**
+ * Render the card detail modal
+ * @param {Object} card 
+ * @param {HTMLElement} modalBody 
+ * @param {Object} collectionManager 
+ * @param {Function} onUpdate - Callback when collection updates
+ */
+export function renderCardModal(card, modalBody, collectionManager, onUpdate) {
+    const imageUrl = card.image ? `${card.image}/high.png` : 'placeholder.svg';
+    const quantity = collectionManager ? collectionManager.getQuantity(card.id) : 0;
+
+    modalBody.innerHTML = `
+        <div class="modal-detail-view">
+            <div class="modal-image-container">
+                <img src="${imageUrl}" alt="${card.name}">
+            </div>
+            <div class="modal-info">
+                <h2>${card.name}</h2>
+                <div class="modal-meta">
+                    <span class="modal-stat">Set: ${card.set.name || card.set}</span>
+                    <span class="modal-stat">Rarity: ${card.rarity}</span>
+                    <span class="modal-stat">Type: ${card.types ? card.types.join(', ') : 'N/A'}</span>
+                    <span class="modal-stat">HP: ${card.hp || 'N/A'}</span>
+                </div>
+                
+                <div class="collection-actions">
+                    <h3>My Collection</h3>
+                    <div class="collection-controls">
+                        <button class="btn-control" id="btn-remove" aria-label="Remove card">-</button>
+                        <span class="quantity-display" id="qty-display">${quantity}</span>
+                        <button class="btn-control" id="btn-add" aria-label="Add card">+</button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                    <p>Illustrator: ${card.illustrator || 'Unknown'}</p>
+                    <p>${card.effect || ''}</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Attach event listeners for add/remove
+    const btnAdd = modalBody.querySelector('#btn-add');
+    const btnRemove = modalBody.querySelector('#btn-remove');
+    const qtyDisplay = modalBody.querySelector('#qty-display');
+
+    btnAdd.onclick = () => {
+        collectionManager.add(card);
+        const newQty = collectionManager.getQuantity(card.id);
+        qtyDisplay.textContent = newQty;
+        if (onUpdate) onUpdate();
+    };
+
+    btnRemove.onclick = () => {
+        collectionManager.remove(card.id);
+        const newQty = collectionManager.getQuantity(card.id);
+        qtyDisplay.textContent = newQty;
+        if (onUpdate) onUpdate();
+    };
 }
 
 /**
