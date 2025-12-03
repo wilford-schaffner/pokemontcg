@@ -1,5 +1,5 @@
 import { fetchCards, fetchSets } from './api.js';
-import { renderCardList, renderSetOptions, showLoading, renderCardModal } from './ui.js';
+import { renderCardList, renderSetOptions, showLoading, renderCardModal, renderProgress } from './ui.js';
 import { CollectionManager } from './collection.js';
 
 // State
@@ -8,7 +8,7 @@ const state = {
     sets: [],
     filters: {
         name: '',
-        set: '',
+        set: 'base1', // Default to Base Set for better performance
         rarity: ''
     },
     collectionManager: new CollectionManager(),
@@ -33,12 +33,23 @@ async function init() {
     // Load Sets
     state.sets = await fetchSets();
     renderSetOptions(state.sets, setFilter);
+    setFilter.value = state.filters.set; // Sync UI with state
 
     // Load Initial Cards
     await loadCards();
 
+    // Initial Progress Render
+    updateProgressUI();
+
     // Event Listeners
     setupEventListeners();
+}
+
+function updateProgressUI() {
+    const score = state.collectionManager.getScore();
+    const tier = state.collectionManager.getTier();
+    const nextTier = state.collectionManager.getNextTier();
+    renderProgress(score, tier, nextTier);
 }
 
 async function loadCards() {
@@ -120,6 +131,10 @@ function setupEventListeners() {
     cardGrid.addEventListener('click', (e) => {
         const cardItem = e.target.closest('.card-item');
         if (cardItem) {
+            if (cardItem.dataset.locked === 'true') {
+                // Optional: Show a toast or shake animation
+                return;
+            }
             const cardId = cardItem.dataset.id;
             // Look in state.cards first, then try collection manager
             let card = state.cards.find(c => c.id === cardId);
@@ -180,6 +195,7 @@ function switchView(viewName) {
 function openModal(card) {
     renderCardModal(card, modalBody, state.collectionManager, () => {
         filterCurrentCards();
+        updateProgressUI();
     });
     modal.classList.remove('hidden');
 }

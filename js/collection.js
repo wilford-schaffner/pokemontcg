@@ -1,3 +1,5 @@
+import { PointsService } from './points.js';
+
 /**
  * Collection Manager
  * Handles user's card collection, persistence, and quantity tracking.
@@ -6,6 +8,7 @@ export class CollectionManager {
     constructor() {
         this.storageKey = 'pokemon-tcg-collection';
         this.collection = {}; // { cardId: { quantity: number, ...cardData } }
+        this.pointsService = new PointsService();
         this.load();
     }
 
@@ -79,5 +82,30 @@ export class CollectionManager {
      */
     getAll() {
         return Object.values(this.collection);
+    }
+    /**
+     * Get total collection score
+     * @returns {number}
+     */
+    getScore() {
+        return this.pointsService.calculateTotalScore(this.collection);
+    }
+
+    /**
+     * Get current tier
+     * @returns {Object}
+     */
+    getTier() {
+        const score = this.getScore();
+        return this.pointsService.getTier(score);
+    }
+
+    /**
+     * Get next tier
+     * @returns {Object|null}
+     */
+    getNextTier() {
+        const score = this.getScore();
+        return this.pointsService.getNextTier(score);
     }
 }

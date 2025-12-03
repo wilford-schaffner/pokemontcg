@@ -24,7 +24,23 @@ export async function fetchCards(filters = {}) {
     try {
         let cards = [];
 
-        if (filters.set) {
+        if (filters.rarity) {
+            const url = `${BASE_URL}/rarities/${filters.rarity}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch rarity cards');
+            const data = await response.json();
+            cards = data.cards || [];
+
+            // If Set is also selected, filter by Set ID prefix
+            if (filters.set) {
+                // Heuristic: Most IDs are {setId}-{localId}
+                // But some might differ. Let's try startsWith.
+                // Also some sets have different ID formats?
+                // Let's try to match loosely or check if we can get set info.
+                // Actually, let's just try strict prefix matching for now.
+                cards = cards.filter(card => card.id.startsWith(filters.set));
+            }
+        } else if (filters.set) {
             const url = `${BASE_URL}/sets/${filters.set}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch set cards');

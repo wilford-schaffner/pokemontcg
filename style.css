@@ -64,6 +64,48 @@ h6 {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.user-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+}
+
+.tier-badge {
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.progress-info {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+    color: #333;
+}
+
+.progress-bar-container {
+    width: 100px;
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    margin-top: 2px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #4caf50;
+    transition: width 0.3s ease;
 }
 
 .logo {
@@ -136,20 +178,89 @@ select {
 }
 
 .card-item {
-    background-color: var(--color-surface);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
     flex-direction: column;
-    position: relative; /* Added for badge positioning */
+    overflow: hidden;
+    position: relative;
 }
 
 .card-item:hover {
     transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.card-locked {
+    filter: grayscale(0.8);
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.card-locked:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    z-index: 10;
+    text-align: center;
+}
+
+.lock-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.lock-text {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.lock-subtext {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.card-points-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #FFD600;
+    color: #333;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    z-index: 5;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.card-owned-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #4caf50;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    z-index: 5;
 }
 
 .card-image-container {
@@ -209,15 +320,16 @@ select {
 
 /* Modal Styles */
 .modal {
-    display: flex; /* Hidden by default via .hidden class, flex when active */
-    position: fixed; 
-    z-index: 1000; 
+    display: flex;
+    /* Hidden by default via .hidden class, flex when active */
+    position: fixed;
+    z-index: 1000;
     left: 0;
     top: 0;
-    width: 100%; 
-    height: 100%; 
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.6); 
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
     align-items: center;
     justify-content: center;
     opacity: 1;
@@ -243,8 +355,15 @@ select {
 }
 
 @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .close-modal {
@@ -308,6 +427,100 @@ select {
     font-weight: 500;
 }
 
+.modal-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.modal-points-badge {
+    background: #FFD600;
+    color: #333;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-weight: 700;
+}
+
+.collection-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #eee;
+}
+
+.collection-controls-manual {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    align-items: center;
+}
+
+.qty-selector {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.qty-selector input {
+    width: 50px;
+    text-align: center;
+    border: none;
+    font-size: 1rem;
+    padding: 0.5rem;
+    -moz-appearance: textfield;
+}
+
+.qty-selector input::-webkit-outer-spin-button,
+.qty-selector input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.btn-primary {
+    background-color: #ef5350;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: #d32f2f;
+}
+
+.remove-action {
+    margin-top: 1rem;
+    text-align: right;
+}
+
+.btn-text-danger {
+    background: none;
+    border: none;
+    color: #d32f2f;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: underline;
+}
+
+.btn-control {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: #f5f5f5;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-control:hover {
+    background: #e0e0e0;
+}
+
 /* Collection Controls */
 .collection-controls {
     display: flex;
@@ -317,34 +530,10 @@ select {
     margin-top: 1rem;
 }
 
-.btn-control {
-    background: #F3F4F6;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-size: 1.2rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-.btn-control:hover {
-    background: #E5E7EB;
-}
-
 .quantity-display {
     font-weight: bold;
     min-width: 20px;
     text-align: center;
-}
-
-/* Owned Indicator on Card Item */
-.card-owned-badge {
-    position: absolute;
-    top: 8px;
     right: 8px;
     background: #FFD600;
     color: #000;
@@ -352,6 +541,6 @@ select {
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 0.8rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 2;
 }
