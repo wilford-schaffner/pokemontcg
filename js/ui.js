@@ -4,17 +4,25 @@
  * @param {HTMLElement} container 
  * @param {Object} collectionManager - Optional collection manager instance
  */
-export function renderCardList(cards, container, collectionManager = null) {
-    container.innerHTML = '';
+/**
+ * Render a list of cards to the grid
+ * @param {Array} cards 
+ * @param {HTMLElement} container 
+ * @param {Object} collectionManager - Optional collection manager instance
+ * @param {boolean} append - If true, append to existing content instead of replacing
+ */
+export function renderCardList(cards, container, collectionManager = null, append = false) {
+    if (!append) {
+        container.innerHTML = '';
+    }
 
-    if (cards.length === 0) {
+    if (cards.length === 0 && !append) {
         container.innerHTML = '<div class="no-results">No cards found.</div>';
         return;
     }
 
     const fragment = document.createDocumentFragment();
 
-    const currentScore = collectionManager ? collectionManager.getScore() : 0;
     // We need points service to check lock status. 
     // Since collectionManager has pointsService, we can access it or duplicate logic.
     // Ideally collectionManager exposes a helper, but let's assume we can access it via collectionManager.pointsService
@@ -59,6 +67,8 @@ export function renderCardList(cards, container, collectionManager = null) {
             pointsBadge = `<div class="card-points-badge">${points} pts</div>`;
 
             const unlockThreshold = collectionManager.pointsService.getUnlockThreshold(rarityName);
+            const currentScore = collectionManager.getScore(); // Get score safely
+
             if (currentScore < unlockThreshold) {
                 isLocked = true;
                 cardEl.classList.add('card-locked');
@@ -102,6 +112,23 @@ export function renderCardList(cards, container, collectionManager = null) {
     });
 
     container.appendChild(fragment);
+}
+
+/**
+ * Render pagination controls
+ * @param {HTMLElement} container 
+ * @param {boolean} hasMore 
+ * @param {Function} onLoadMore 
+ */
+export function renderPaginationControls(container, hasMore, onLoadMore) {
+    container.innerHTML = '';
+    if (hasMore) {
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.className = 'btn-secondary load-more-btn';
+        loadMoreBtn.textContent = 'Load More Cards';
+        loadMoreBtn.onclick = onLoadMore;
+        container.appendChild(loadMoreBtn);
+    }
 }
 
 /**
@@ -212,7 +239,11 @@ export function renderSetOptions(sets, selectElement) {
 
     const fragment = document.createDocumentFragment();
 
-    sets.forEach(set => {
+    // Filter out known broken sets that return empty data from the API
+    // Filter out known broken sets that return empty data or have no images
+    const BROKEN_SETS = ["wp", "jumbo", "bog", "ex5.5", "tk-ex-latio", "tk-ex-latia", "exu", "tk-ex-p", "tk-ex-m", "tk-dp-l", "tk-dp-m", "tk-hs-g", "tk-hs-r", "2011bw", "tk-bw-z", "tk-bw-e", "2012bw", "xya", "tk-xy-sy", "tk-xy-n", "2014xy", "tk-xy-b", "tk-xy-w", "tk-xy-latia", "tk-xy-latio", "2015xy", "tk-xy-p", "tk-xy-su", "2016xy", "tk-sm-l", "tk-sm-r", "2017sm", "sm3.5", "sm7.5", "2018sm", "2019sm", "2021swsh", "mep"];
+
+    sets.filter(set => !BROKEN_SETS.includes(set.id)).forEach(set => {
         const option = document.createElement('option');
         option.value = set.id;
         option.textContent = set.name;

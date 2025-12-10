@@ -543,4 +543,33 @@ select {
     font-size: 0.8rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 2;
+}.load-more-btn {
+    background-color: var(--color-primary);
+    color: var(--color-text);
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    margin: 2rem auto;
+    display: block;
+    box-shadow: var(--shadow-md);
+}
+
+.load-more-btn:hover {
+    background-color: var(--color-primary-dark);
+    transform: translateY(-2px);
+}
+
+.load-more-btn:active {
+    transform: translateY(0);
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    width: 100%;
 }

@@ -16,11 +16,11 @@ export async function fetchSets() {
 }
 
 /**
- * Fetch cards with optional filters
+ * Fetch card summaries (lightweight data) with optional filters
  * @param {Object} filters - { set, rarity, name }
- * @returns {Promise<Array>} List of cards
+ * @returns {Promise<Array>} List of card summaries (id, localId, name, image)
  */
-export async function fetchCards(filters = {}) {
+export async function fetchCardSummaries(filters = {}) {
     try {
         let cards = [];
 
@@ -33,11 +33,6 @@ export async function fetchCards(filters = {}) {
 
             // If Set is also selected, filter by Set ID prefix
             if (filters.set) {
-                // Heuristic: Most IDs are {setId}-{localId}
-                // But some might differ. Let's try startsWith.
-                // Also some sets have different ID formats?
-                // Let's try to match loosely or check if we can get set info.
-                // Actually, let's just try strict prefix matching for now.
                 cards = cards.filter(card => card.id.startsWith(filters.set));
             }
         } else if (filters.set) {
@@ -61,23 +56,31 @@ export async function fetchCards(filters = {}) {
             cards = cards.filter(card => card.name.toLowerCase().includes(term));
         }
 
-        const slicedCards = cards.slice(0, 20); // Limit to 20 for performance and detail fetching
-
-        // Fetch details for each card to get Type and Rarity
-        const detailedCards = await Promise.all(slicedCards.map(async (card) => {
-            try {
-                return await fetchCardDetails(card.id);
-            } catch (e) {
-                console.error(`Failed to fetch details for ${card.id}`, e);
-                return null;
-            }
-        }));
-
-        return detailedCards.filter(c => c !== null);
+        return cards;
     } catch (error) {
         console.error('Error fetching cards:', error);
         return [];
     }
+}
+
+/**
+ * Fetch full details for a batch of cards
+ * @param {Array} cardSummaries 
+ * @returns {Promise<Array>} List of detailed cards
+ */
+export async function fetchBatchDetails(cardSummaries) {
+    const detailedCards = await Promise.all(cardSummaries.map(async (card) => {
+        try {
+            return await fetchCardDetails(card.id);
+        } catch (e) {
+            console.error(`Failed to fetch details for ${card.id}`, e);
+            return null;
+        }
+    }));
+
+    // If detail fetch fails, we might want to fall back to summary or just filter out.
+    // Let's filter out nulls.
+    return detailedCards.filter(c => c !== null);
 }
 
 /**

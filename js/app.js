@@ -1,14 +1,15 @@
-import { fetchCards, fetchSets } from './api.js';
-import { renderCardList, renderSetOptions, showLoading, renderCardModal, renderProgress } from './ui.js';
+import { fetchCardSummaries, fetchBatchDetails, fetchSets } from './api.js';
+import { renderCardList, renderSetOptions, showLoading, renderCardModal, renderProgress, renderPaginationControls } from './ui.js';
 import { CollectionManager } from './collection.js';
 
 // State
 const state = {
-    cards: [],
+    allCardSummaries: [], // Full list of simplified cards matching filters
+    cards: [], // Currently loaded detailed cards
     sets: [],
     filters: {
         name: '',
-        set: 'base1', // Default to Base Set for better performance
+        set: '', // Default to All Sets
         rarity: ''
     },
     collectionManager: new CollectionManager(),
@@ -17,6 +18,7 @@ const state = {
 
 // DOM Elements
 const cardGrid = document.getElementById('card-grid');
+const paginationControls = document.getElementById('pagination-controls');
 const searchInput = document.getElementById('search-input');
 const setFilter = document.getElementById('set-filter');
 const rarityFilter = document.getElementById('rarity-filter');
@@ -52,36 +54,64 @@ function updateProgressUI() {
     renderProgress(score, tier, nextTier);
 }
 
+// Main function to load cards based on current filters
 async function loadCards() {
-    showLoading(cardGrid);
-    // In a real app, we might fetch differently for collection, 
-    // but here we filter client-side from the main list or fetch all if needed.
-    // For now, we assume state.cards holds the current fetched batch.
-    // If "My Collection" needs to show cards NOT in the current batch, we'd need to fetch them by ID.
-    // However, the current API usage fetches a limited batch or by set.
-    // To properly show "My Collection", we should probably fetch the specific cards owned if they aren't loaded.
-    // For simplicity in this iteration, we will just filter the CURRENTLY LOADED cards or 
-    // if in collection view, we might need to fetch details for all owned cards.
-
     if (state.view === 'collection') {
-        // If we are in collection view, we need to ensure we have the card data for owned cards.
-        // The collection manager has minimal data.
-        // Let's rely on filterCurrentCards to handle the display logic, 
-        // assuming for now we are operating on the loaded set or search results.
-        // Ideally, we would fetch all owned cards here.
-        // Let's try to fetch details for owned cards if we are in collection view.
-        const ownedIds = Object.keys(state.collectionManager.collection);
-        if (ownedIds.length > 0) {
-            // This might be heavy if many cards, but for now it's okay.
-            // Actually, let's just use the data we have in collection manager if possible, 
-            // or fetch if missing.
-            // For this step, let's stick to filtering the current view to avoid complex fetching logic changes.
-        }
-    } else {
-        state.cards = await fetchCards(state.filters);
+        filterCurrentCards();
+        return;
     }
 
-    filterCurrentCards();
+    showLoading(cardGrid);
+    paginationControls.innerHTML = ''; // Clear pagination
+
+    // Fetch all summaries matching the filters
+    state.allCardSummaries = await fetchCardSummaries(state.filters);
+    state.cards = []; // Reset detailed cards
+
+    // Initial load of first batch
+    await loadMoreCards();
+}
+
+// Load next batch of cards
+async function loadMoreCards() {
+    const start = state.cards.length;
+    const end = start + 20;
+    const batchSummaries = state.allCardSummaries.slice(start, end);
+
+    if (batchSummaries.length === 0) {
+        if (state.cards.length === 0) {
+            renderCardList([], cardGrid); // Render "No results"
+        }
+        renderPaginationControls(paginationControls, false, null);
+        return;
+    }
+
+    // Show small loading indicator if appending? 
+    // Or just fetch. User interaction handles "Load More" click.
+    // If it's the first batch, cardGrid might be showing "Loading...".
+    // If appending, we might want a spinner at bottom. 
+    // For simplicity, just fetch.
+
+    // Fetch details for the batch
+    const detailedBatch = await fetchBatchDetails(batchSummaries);
+
+    state.cards = [...state.cards, ...detailedBatch];
+
+    // Render (append if not first batch)
+    const isAppend = start > 0;
+    renderCardList(detailedBatch, cardGrid, state.collectionManager, isAppend);
+
+    // Render Pagination Controls
+    const hasMore = state.cards.length < state.allCardSummaries.length;
+    renderPaginationControls(paginationControls, hasMore, async () => {
+        // Show loading state on button?
+        const btn = paginationControls.querySelector('button');
+        if (btn) {
+            btn.textContent = 'Loading...';
+            btn.disabled = true;
+        }
+        await loadMoreCards();
+    });
 }
 
 function setupEventListeners() {
@@ -124,7 +154,11 @@ function setupEventListeners() {
     // Rarity Filter
     rarityFilter.addEventListener('change', (e) => {
         state.filters.rarity = e.target.value;
-        filterCurrentCards();
+        if (state.view === 'browse') {
+            loadCards();
+        } else {
+            filterCurrentCards();
+        }
     });
 
     // Card Click (Event Delegation)
@@ -132,7 +166,6 @@ function setupEventListeners() {
         const cardItem = e.target.closest('.card-item');
         if (cardItem) {
             if (cardItem.dataset.locked === 'true') {
-                // Optional: Show a toast or shake animation
                 return;
             }
             const cardId = cardItem.dataset.id;
@@ -148,8 +181,6 @@ function setupEventListeners() {
                         name: collected.name,
                         image: collected.image,
                         rarity: collected.rarity,
-                        // Missing types/hp/set name in minimal storage, 
-                        // but we can live with it or fetch it.
                         types: [],
                         set: 'Unknown'
                     };
@@ -181,20 +212,41 @@ function switchView(viewName) {
     if (viewName === 'browse') {
         navBrowse.classList.add('active');
         navCollection.classList.remove('active');
-        // Reset filters or keep them? Let's keep them but re-fetch
+        paginationControls.style.display = 'block'; // Show pagination in browse
         loadCards();
     } else {
         navCollection.classList.add('active');
         navBrowse.classList.remove('active');
+        paginationControls.style.display = 'none'; // Hide pagination in collection (for now)
         // In collection view, we want to show owned cards. 
-        // We might need to clear the grid and render from collection.
         filterCurrentCards();
     }
 }
 
 function openModal(card) {
     renderCardModal(card, modalBody, state.collectionManager, () => {
-        filterCurrentCards();
+        // If in collection view, refresh list. If browse, maybe not needed unless we show owned status?
+        // Updating owned status in browse list would require re-rendering the specific card or all.
+        // For simplicity, let's re-render the visible list if in browse, or filter if in collection.
+        if (state.view === 'collection') {
+            filterCurrentCards();
+        } else {
+            // In browse, just update the owned badge on the specific card in the grid if possible
+            // Or re-render everything (might be heavy).
+            // Let's just update progress UI for now. Re-rendering `state.cards` from memory is cheap enough?
+            // Actually re-rendering 20-40 cards is fine.
+            renderCardList(state.cards, cardGrid, state.collectionManager, false);
+            // Re-render pagination controls? They stick around.
+            const hasMore = state.cards.length < state.allCardSummaries.length;
+            renderPaginationControls(paginationControls, hasMore, async () => {
+                const btn = paginationControls.querySelector('button');
+                if (btn) {
+                    btn.textContent = 'Loading...';
+                    btn.disabled = true;
+                }
+                await loadMoreCards();
+            });
+        }
         updateProgressUI();
     });
     modal.classList.remove('hidden');
@@ -210,22 +262,12 @@ function filterCurrentCards() {
         filtered = ownedCards.filter(card => {
             const matchName = !state.filters.name || card.name.toLowerCase().includes(state.filters.name.toLowerCase());
             const matchRarity = !state.filters.rarity || card.rarity === state.filters.rarity;
-            // Set filter might be hard if we don't store set ID in collection. 
-            // We didn't store set ID in collection.js add() method.
-            // For now, ignore set filter in collection view or update collection.js to store it.
             return matchName && matchRarity;
         });
-    } else {
-        filtered = state.cards;
-        if (state.filters.rarity) {
-            filtered = filtered.filter(card => card.rarity === state.filters.rarity);
-        }
-        if (state.filters.name) {
-            filtered = filtered.filter(card => card.name.toLowerCase().includes(state.filters.name.toLowerCase()));
-        }
-    }
 
-    renderCardList(filtered, cardGrid, state.collectionManager);
+        renderCardList(filtered, cardGrid, state.collectionManager);
+    }
+    // Browse view handled by loadCards
 }
 
 // Start App
