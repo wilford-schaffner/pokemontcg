@@ -106,6 +106,17 @@ export function renderCardList(cards, container, collectionManager = null, appen
             // The event listener in app.js checks for .card-item. 
             // We can add a data attribute or class to prevent opening.
             cardEl.dataset.locked = 'true';
+            cardEl.setAttribute('aria-disabled', 'true');
+        } else {
+            cardEl.tabIndex = 0;
+            cardEl.role = 'button';
+            cardEl.setAttribute('aria-label', `View details for ${card.name}`);
+            cardEl.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    cardEl.click();
+                }
+            };
         }
 
         fragment.appendChild(cardEl);
@@ -131,102 +142,7 @@ export function renderPaginationControls(container, hasMore, onLoadMore) {
     }
 }
 
-/**
- * Render the card detail modal
- * @param {Object} card 
- * @param {HTMLElement} modalBody 
- * @param {Object} collectionManager 
- * @param {Function} onUpdate - Callback when collection updates
- */
-export function renderCardModal(card, modalBody, collectionManager, onUpdate) {
-    const imageUrl = card.image ? `${card.image}/high.png` : 'placeholder.svg';
-    const quantity = collectionManager ? collectionManager.getQuantity(card.id) : 0;
 
-    // Get points
-    let points = 0;
-    if (collectionManager && collectionManager.pointsService) {
-        points = collectionManager.pointsService.getCardPoints(card.rarity || '');
-    }
-
-    modalBody.innerHTML = `
-        <div class="modal-detail-view">
-            <div class="modal-image-container">
-                <img src="${imageUrl}" alt="${card.name}">
-            </div>
-            <div class="modal-info">
-                <div class="modal-header-row">
-                    <h2>${card.name}</h2>
-                    <span class="modal-points-badge">${points} pts</span>
-                </div>
-                <div class="modal-meta">
-                    <span class="modal-stat">Set: ${card.set.name || card.set}</span>
-                    <span class="modal-stat">Rarity: ${card.rarity}</span>
-                    <span class="modal-stat">Type: ${card.types ? card.types.join(', ') : 'N/A'}</span>
-                    <span class="modal-stat">HP: ${card.hp || 'N/A'}</span>
-                </div>
-                
-                <div class="collection-actions">
-                    <h3>My Collection (Owned: <span id="owned-qty">${quantity}</span>)</h3>
-                    <div class="collection-controls-manual">
-                        <div class="qty-selector">
-                            <button class="btn-control" id="btn-minus">-</button>
-                            <input type="number" id="input-qty" value="1" min="1" max="99">
-                            <button class="btn-control" id="btn-plus">+</button>
-                        </div>
-                        <button class="btn-primary" id="btn-add-collection">Add to Collection</button>
-                    </div>
-                    <div class="remove-action">
-                        <button class="btn-text-danger" id="btn-remove-one">Remove 1 Copy</button>
-                    </div>
-                </div>
-
-                <div style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
-                    <p>Illustrator: ${card.illustrator || 'Unknown'}</p>
-                    <p>${card.effect || ''}</p>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Attach event listeners
-    const btnMinus = modalBody.querySelector('#btn-minus');
-    const btnPlus = modalBody.querySelector('#btn-plus');
-    const inputQty = modalBody.querySelector('#input-qty');
-    const btnAdd = modalBody.querySelector('#btn-add-collection');
-    const btnRemove = modalBody.querySelector('#btn-remove-one');
-    const ownedDisplay = modalBody.querySelector('#owned-qty');
-
-    btnMinus.onclick = () => {
-        let val = parseInt(inputQty.value) || 1;
-        if (val > 1) inputQty.value = val - 1;
-    };
-
-    btnPlus.onclick = () => {
-        let val = parseInt(inputQty.value) || 1;
-        inputQty.value = val + 1;
-    };
-
-    btnAdd.onclick = () => {
-        const addAmount = parseInt(inputQty.value) || 1;
-        for (let i = 0; i < addAmount; i++) {
-            collectionManager.add(card);
-        }
-        // Update display
-        ownedDisplay.textContent = collectionManager.getQuantity(card.id);
-        // Reset input? Maybe keep it.
-        if (onUpdate) onUpdate();
-
-        // Visual feedback
-        btnAdd.textContent = "Added!";
-        setTimeout(() => btnAdd.textContent = "Add to Collection", 1000);
-    };
-
-    btnRemove.onclick = () => {
-        collectionManager.remove(card.id);
-        ownedDisplay.textContent = collectionManager.getQuantity(card.id);
-        if (onUpdate) onUpdate();
-    };
-}
 
 /**
  * Populate the set filter dropdown
@@ -288,4 +204,259 @@ export function renderProgress(score, tier, nextTier) {
             </div>
         </div>
     `;
+}
+
+/**
+ * Render the list of decks
+ * @param {Array} decks 
+ * @param {HTMLElement} container 
+ * @param {Object} callbacks - { onCreate, onSelect }
+ */
+export function renderDeckList(decks, container, callbacks) {
+    container.innerHTML = `
+        <div class="decks-header" style="margin-bottom: 2rem;">
+            <h2>My Decks</h2>
+        </div>
+        <div class="decks-grid">
+            <div class="deck-card deck-card-new" id="create-deck-card">
+                <span style="font-size: 2rem;">+</span>
+                <span>Create New Deck</span>
+            </div>
+            <!-- Decks will be injected here -->
+        </div>
+    `;
+
+    const grid = container.querySelector('.decks-grid');
+
+    decks.forEach(deck => {
+        const card = document.createElement('div');
+        card.className = 'deck-card';
+        card.tabIndex = 0;
+        card.role = 'button';
+        card.setAttribute('aria-label', `Open deck ${deck.name}`);
+        card.innerHTML = `
+            <div class="deck-name">${deck.name}</div>
+            <div class="deck-count">${deck.cards.length} cards</div>
+        `;
+        card.onclick = () => callbacks.onSelect(deck.id);
+        card.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                callbacks.onSelect(deck.id);
+            }
+        };
+        grid.appendChild(card);
+    });
+
+    // Create Handler
+    const createBtn = container.querySelector('#create-deck-card');
+    createBtn.tabIndex = 0;
+    createBtn.role = 'button';
+    createBtn.setAttribute('aria-label', 'Create new deck');
+
+    const handleCreate = () => {
+        const name = prompt("Enter deck name:");
+        if (name) {
+            callbacks.onCreate(name);
+        }
+    };
+
+    createBtn.onclick = handleCreate;
+    createBtn.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCreate();
+        }
+    };
+}
+
+/**
+ * Render deck detail view
+ * @param {Object} deck 
+ * @param {HTMLElement} container 
+ * @param {Object} callbacks - { onRemoveCard, onDeleteDeck, onBack }
+ */
+export function renderDeckDetail(deck, container, callbacks) {
+    container.innerHTML = `
+        <div class="deck-detail-header">
+            <div>
+                <button class="btn-text-danger" style="color: #666; text-decoration: none; margin-bottom: 0.5rem;" id="btn-back">← Back to Decks</button>
+                <h1>${deck.name}</h1>
+                <span style="color: #666;">${deck.cards.length} cards</span>
+            </div>
+            <div class="deck-actions">
+                <button class="btn-danger" id="btn-delete-deck">Delete Deck</button>
+                <!-- Export/Import could go here -->
+            </div>
+        </div>
+        <div class="card-grid" id="deck-card-grid">
+            <!-- Cards -->
+        </div>
+    `;
+
+    // Render cards using existing renderCardList but we might want custom actions
+    // Actually renderCardList is specific to grid with click-to-open.
+    // That's fine, clicking opens modal where they can remove it or see details.
+    // However, `renderCardList` attaches "Owned" badge.
+    // The deck might contain cards not in collection? (Proxy?) 
+    // Assuming for now user only adds owned cards, but technically DeckManager allows copies.
+
+    // We can use renderCardList.
+    // But we need to handle "Remove" from here maybe? Or via modal.
+    // Let's use renderCardList for consistency.
+
+    const grid = container.querySelector('#deck-card-grid');
+
+    // Pass null for collectionManager to not show "Owned" badges? Or pass it if available.
+    // We don't have collectionManager passed here. 
+    // Ideally we pass it to show owned counts still.
+    // But for now let's just render visuals.
+
+    // We need to re-import renderCardList or use the one in this file. 
+    // It's in this file.
+
+    // Warning: recursive dependency if we imported things awkwardly, but we are in ui.js
+
+    renderCardList(deck.cards, grid, null); // No collection manager passed, so no owned badges for now.
+
+    // Wire up buttons
+    container.querySelector('#btn-back').onclick = callbacks.onBack;
+    container.querySelector('#btn-delete-deck').onclick = callbacks.onDeleteDeck;
+}
+
+/**
+ * Render the card detail modal
+ * @param {Object} card 
+ * @param {HTMLElement} modalBody 
+ * @param {Object} collectionManager 
+ * @param {Object} deckManager - Optional
+ * @param {Function} onUpdate - Callback when collection updates
+ */
+export function renderCardModal(card, modalBody, collectionManager, deckManager, onUpdate) {
+    const imageUrl = card.image ? `${card.image}/high.png` : 'placeholder.svg';
+    const quantity = collectionManager ? collectionManager.getQuantity(card.id) : 0;
+
+    // Get points
+    let points = 0;
+    if (collectionManager && collectionManager.pointsService) {
+        points = collectionManager.pointsService.getCardPoints(card.rarity || '');
+    }
+
+    // Deck Selector Options
+    let deckOptionsHtml = '<option value="">Select a deck...</option>';
+    if (deckManager) {
+        const decks = deckManager.getAllDecks();
+        decks.forEach(d => {
+            deckOptionsHtml += `<option value="${d.id}">${d.name}</option>`;
+        });
+    }
+
+    modalBody.innerHTML = `
+        <div class="modal-detail-view">
+            <div class="modal-image-container">
+                <img src="${imageUrl}" alt="${card.name}">
+            </div>
+            <div class="modal-info">
+                <div class="modal-header-row">
+                    <h2>${card.name}</h2>
+                    <span class="modal-points-badge">${points} pts</span>
+                </div>
+                <div class="modal-meta">
+                    <span class="modal-stat">Set: ${card.set.name || card.set}</span>
+                    <span class="modal-stat">Rarity: ${card.rarity}</span>
+                    <span class="modal-stat">Type: ${card.types ? card.types.join(', ') : 'N/A'}</span>
+                    <span class="modal-stat">HP: ${card.hp || 'N/A'}</span>
+                </div>
+                
+                <div class="collection-actions">
+                    <h3>My Collection (Owned: <span id="owned-qty">${quantity}</span>)</h3>
+                    <div class="collection-controls-manual">
+                        <div class="qty-selector">
+                            <button class="btn-control" id="btn-minus">-</button>
+                            <input type="number" id="input-qty" value="1" min="1" max="99">
+                            <button class="btn-control" id="btn-plus">+</button>
+                        </div>
+                        <button class="btn-primary" id="btn-add-collection">Add to Collection</button>
+                    </div>
+                    <div class="remove-action">
+                        <button class="btn-text-danger" id="btn-remove-one">Remove 1 Copy</button>
+                    </div>
+                </div>
+
+                ${deckManager ? `
+                <div class="collection-actions">
+                    <h3>Decks</h3>
+                    <div class="collection-controls-manual">
+                        <select id="deck-select" style="padding: 0.5rem; border-radius: 8px; border: 1px solid #ddd; margin-right: 0.5rem;">
+                            ${deckOptionsHtml}
+                        </select>
+                        <button class="btn-primary" id="btn-add-deck" style="background-color: #2563eb;">Add to Deck</button>
+                    </div>
+                </div>
+                ` : ''}
+
+                <div style="margin-top: 2rem; color: #666; font-size: 0.9rem;">
+                    <p>Illustrator: ${card.illustrator || 'Unknown'}</p>
+                    <p>${card.effect || ''}</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Attach event listeners
+    const btnMinus = modalBody.querySelector('#btn-minus');
+    const btnPlus = modalBody.querySelector('#btn-plus');
+    const inputQty = modalBody.querySelector('#input-qty');
+    const btnAdd = modalBody.querySelector('#btn-add-collection');
+    const btnRemove = modalBody.querySelector('#btn-remove-one');
+    const ownedDisplay = modalBody.querySelector('#owned-qty');
+
+    btnMinus.onclick = () => {
+        let val = parseInt(inputQty.value) || 1;
+        if (val > 1) inputQty.value = val - 1;
+    };
+
+    btnPlus.onclick = () => {
+        let val = parseInt(inputQty.value) || 1;
+        inputQty.value = val + 1;
+    };
+
+    btnAdd.onclick = () => {
+        const addAmount = parseInt(inputQty.value) || 1;
+        for (let i = 0; i < addAmount; i++) {
+            collectionManager.add(card);
+        }
+        // Update display
+        ownedDisplay.textContent = collectionManager.getQuantity(card.id);
+        // Reset input? Maybe keep it.
+        if (onUpdate) onUpdate();
+
+        // Visual feedback
+        btnAdd.textContent = "Added!";
+        setTimeout(() => btnAdd.textContent = "Add to Collection", 1000);
+    };
+
+    btnRemove.onclick = () => {
+        collectionManager.remove(card.id);
+        ownedDisplay.textContent = collectionManager.getQuantity(card.id);
+        if (onUpdate) onUpdate();
+    };
+
+    // Deck listeners
+    if (deckManager) {
+        const btnAddDeck = modalBody.querySelector('#btn-add-deck');
+        const deckSelect = modalBody.querySelector('#deck-select');
+
+        btnAddDeck.onclick = () => {
+            const deckId = deckSelect.value;
+            if (!deckId) {
+                alert('Please select a deck.');
+                return;
+            }
+            if (deckManager.addCardToDeck(deckId, card)) {
+                btnAddDeck.textContent = "Added!";
+                setTimeout(() => btnAddDeck.textContent = "Add to Deck", 1000);
+            }
+        };
+    }
 }

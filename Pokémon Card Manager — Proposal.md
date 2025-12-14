@@ -76,7 +76,7 @@ Build a web app to **collect**, **organize**, and **progress** through Pokémon 
 - **Week 10 (6–7h):** Scope finalization, data models, API integration, card list rendering, basic filters.
 - **Week 11 (6–7h):** Collection Manager (add/remove, quantities), LocalStorage persistence, search, detail view.
 - **Week 12 (6h):** Scoring engine, milestones, progress UI, unlock tiers, badges.
-- **Week 13 (6h):** Decks/Lists feature, export/import, settings, accessibility pass, performance tuning.
+- **Week 13 (6h):** Decks/Lists feature, settings, accessibility pass, performance tuning.
 - **Week 14 (5h):** Polish styles, QA, unit tests for scoring/persistence, documentation, demo prep.
 
 ## Deliverables

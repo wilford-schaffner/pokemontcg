@@ -1,6 +1,7 @@
 import { fetchCardSummaries, fetchBatchDetails, fetchSets } from './api.js';
-import { renderCardList, renderSetOptions, showLoading, renderCardModal, renderProgress, renderPaginationControls } from './ui.js';
+import { renderCardList, renderSetOptions, showLoading, renderCardModal, renderProgress, renderPaginationControls, renderDeckList, renderDeckDetail } from './ui.js';
 import { CollectionManager } from './collection.js';
+import { DeckManager } from './decks.js';
 
 // State
 const state = {
@@ -13,10 +14,13 @@ const state = {
         rarity: ''
     },
     collectionManager: new CollectionManager(),
-    view: 'browse' // 'browse' or 'collection'
+    deckManager: new DeckManager(),
+    view: 'browse', // 'browse', 'collection', 'decks', 'deck-detail'
+    currentDeckId: null // For deck-detail view
 };
 
 // DOM Elements
+const contentArea = document.getElementById('content-area');
 const cardGrid = document.getElementById('card-grid');
 const paginationControls = document.getElementById('pagination-controls');
 const searchInput = document.getElementById('search-input');
@@ -27,10 +31,26 @@ const modalBody = document.getElementById('modal-body');
 const closeModal = document.querySelector('.close-modal');
 const navBrowse = document.getElementById('nav-browse');
 const navCollection = document.getElementById('nav-collection');
+const navDecks = document.getElementById('nav-decks');
+const navSets = document.getElementById('nav-sets'); // We didn't impl Sets view yet but it's in nav
 
+// Settings Elements
+const btnSettings = document.getElementById('btn-settings');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettings = document.getElementById('close-settings');
+const toggleDarkMode = document.getElementById('toggle-dark-mode');
+const btnResetData = document.getElementById('btn-reset-data');
+
+// Initialization
 // Initialization
 async function init() {
     showLoading(cardGrid);
+
+    // Load Settings
+    if (localStorage.getItem('pokemon-tcg-dark-mode') === 'true') {
+        document.body.classList.add('dark-mode');
+        if (toggleDarkMode) toggleDarkMode.checked = true;
+    }
 
     // Load Sets
     state.sets = await fetchSets();
@@ -60,7 +80,18 @@ async function loadCards() {
         filterCurrentCards();
         return;
     }
+    if (state.view === 'decks') {
+        renderDecksView();
+        return;
+    }
+    if (state.view === 'deck-detail') {
+        renderDeckDetailView();
+        return;
+    }
 
+    // Browse View
+    // Ensure grid is visible (might have been replaced by deck view content)
+    ensureGridVisible();
     showLoading(cardGrid);
     paginationControls.innerHTML = ''; // Clear pagination
 
@@ -86,12 +117,6 @@ async function loadMoreCards() {
         return;
     }
 
-    // Show small loading indicator if appending? 
-    // Or just fetch. User interaction handles "Load More" click.
-    // If it's the first batch, cardGrid might be showing "Loading...".
-    // If appending, we might want a spinner at bottom. 
-    // For simplicity, just fetch.
-
     // Fetch details for the batch
     const detailedBatch = await fetchBatchDetails(batchSummaries);
 
@@ -104,7 +129,6 @@ async function loadMoreCards() {
     // Render Pagination Controls
     const hasMore = state.cards.length < state.allCardSummaries.length;
     renderPaginationControls(paginationControls, hasMore, async () => {
-        // Show loading state on button?
         const btn = paginationControls.querySelector('button');
         if (btn) {
             btn.textContent = 'Loading...';
@@ -113,6 +137,70 @@ async function loadMoreCards() {
         await loadMoreCards();
     });
 }
+
+function ensureGridVisible() {
+    // If we replaced content-area content, restore grid structure
+    if (!document.getElementById('card-grid')) {
+        contentArea.innerHTML = `
+            <section id="card-grid" class="card-grid">
+                <div class="loading-spinner">Loading cards...</div>
+            </section>
+            <div id="pagination-controls" class="pagination-controls"></div>
+        `;
+        // Re-assign references (cheeky but needed if we destroy them)
+        // Actually, better to just hide/show sections if possible, but our current UI replaces content.
+        // Let's stick to replacing contentArea.innerHTML for different views.
+    }
+}
+
+function renderDecksView() {
+    state.currentDeckId = null;
+    contentArea.innerHTML = '';
+    const container = document.createElement('div');
+    container.className = 'decks-view';
+    contentArea.appendChild(container);
+
+    renderDeckList(state.deckManager.getAllDecks(), container, {
+        onCreate: (name) => {
+            state.deckManager.createDeck(name);
+            renderDecksView(); // Refresh
+        },
+        onSelect: (deckId) => {
+            state.currentDeckId = deckId;
+            switchView('deck-detail');
+        }
+    });
+}
+
+function renderDeckDetailView() {
+    const deck = state.deckManager.getDeck(state.currentDeckId);
+    if (!deck) {
+        switchView('decks');
+        return;
+    }
+
+    contentArea.innerHTML = '';
+    const container = document.createElement('div');
+    container.className = 'deck-detail-view';
+    contentArea.appendChild(container);
+
+    renderDeckDetail(deck, container, {
+        onRemoveCard: (cardId) => {
+            state.deckManager.removeCardFromDeck(deck.id, cardId);
+            renderDeckDetailView(); // Refresh
+        },
+        onDeleteDeck: () => {
+            if (confirm('Are you sure you want to delete this deck?')) {
+                state.deckManager.deleteDeck(deck.id);
+                switchView('decks');
+            }
+        },
+        onBack: () => {
+            switchView('decks');
+        }
+    });
+}
+
 
 function setupEventListeners() {
     // Navigation
@@ -126,6 +214,44 @@ function setupEventListeners() {
         switchView('collection');
     });
 
+    navDecks.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView('decks');
+    });
+
+    // Settings
+    btnSettings.addEventListener('click', () => {
+        settingsModal.classList.remove('hidden');
+    });
+
+    closeSettings.addEventListener('click', () => {
+        settingsModal.classList.add('hidden');
+    });
+
+    window.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.classList.add('hidden');
+        }
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    });
+
+    // Dark Mode
+    toggleDarkMode.addEventListener('change', (e) => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('pokemon-tcg-dark-mode', e.target.checked);
+    });
+
+    // Reset Data
+    btnResetData.addEventListener('click', () => {
+        if (confirm('Are you sure? This will execute "Order 66" on your data. (Delete everything)')) {
+            localStorage.removeItem('pokemon-tcg-collection');
+            localStorage.removeItem('pokemon-tcg-decks');
+            window.location.reload();
+        }
+    });
+
     // Search Debounce
     let debounceTimer;
     searchInput.addEventListener('input', (e) => {
@@ -135,7 +261,7 @@ function setupEventListeners() {
             // If in browse mode, we re-fetch. In collection mode, we filter client side.
             if (state.view === 'browse') {
                 loadCards();
-            } else {
+            } else if (state.view === 'collection') {
                 filterCurrentCards();
             }
         }, 500);
@@ -146,7 +272,7 @@ function setupEventListeners() {
         state.filters.set = e.target.value;
         if (state.view === 'browse') {
             loadCards();
-        } else {
+        } else if (state.view === 'collection') {
             filterCurrentCards();
         }
     });
@@ -156,35 +282,46 @@ function setupEventListeners() {
         state.filters.rarity = e.target.value;
         if (state.view === 'browse') {
             loadCards();
-        } else {
+        } else if (state.view === 'collection') {
             filterCurrentCards();
         }
     });
 
-    // Card Click (Event Delegation)
-    cardGrid.addEventListener('click', (e) => {
+    // Card Click (Event Delegation) update for multiple views
+    // Decks view might have cards too? Deck Detail view?
+    // We should allow clicking cards in Deck Detail view to see details? Yes.
+    // The event listener is on `cardGrid`. We need to attach it to `contentArea`?
+    // Or just generic document listener for `.card-item`?
+    // Let's move it to `contentArea` or document.
+    document.addEventListener('click', (e) => {
         const cardItem = e.target.closest('.card-item');
         if (cardItem) {
+            // Check if inside a restricted area?
             if (cardItem.dataset.locked === 'true') {
                 return;
             }
+
             const cardId = cardItem.dataset.id;
-            // Look in state.cards first, then try collection manager
-            let card = state.cards.find(c => c.id === cardId);
-            if (!card && state.view === 'collection') {
-                // Fallback to collection data if not in current main list
+            let card = null;
+
+            // Try to find card in currently loaded lists based on view
+            if (state.view === 'browse') {
+                card = state.cards.find(c => c.id === cardId);
+            } else if (state.view === 'collection') {
+                // Fallback to collection data
                 const collected = state.collectionManager.collection[cardId];
-                if (collected) {
-                    // Reconstruct enough card data for the modal
-                    card = {
-                        id: collected.id,
-                        name: collected.name,
-                        image: collected.image,
-                        rarity: collected.rarity,
-                        types: [],
-                        set: 'Unknown'
-                    };
+                if (collected) card = collected;
+            } else if (state.view === 'deck-detail') {
+                // From current deck
+                const deck = state.deckManager.getDeck(state.currentDeckId);
+                if (deck) {
+                    card = deck.cards.find(c => c.id === cardId);
                 }
+            }
+
+            // Fallback: If not found in current context, maybe check global collection
+            if (!card && state.collectionManager.collection[cardId]) {
+                card = state.collectionManager.collection[cardId];
             }
 
             if (card) {
@@ -197,53 +334,48 @@ function setupEventListeners() {
     closeModal.addEventListener('click', () => {
         modal.classList.add('hidden');
     });
-
-    window.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.add('hidden');
-        }
-    });
 }
 
 function switchView(viewName) {
     state.view = viewName;
+    console.log('Switching to view:', viewName);
 
     // Update Nav UI
+    navBrowse.classList.remove('active');
+    navCollection.classList.remove('active');
+    navDecks.classList.remove('active');
+    // navSets.classList.remove('active');
+
     if (viewName === 'browse') {
         navBrowse.classList.add('active');
-        navCollection.classList.remove('active');
-        paginationControls.style.display = 'block'; // Show pagination in browse
+        ensureGridVisible();
+        state.filters = { name: '', set: '', rarity: '' }; // Optional: Reset filters? Maybe Keep.
+        // If we reset filters we need to update UI inputs. Let's keep filters for now.
         loadCards();
-    } else {
+    } else if (viewName === 'collection') {
         navCollection.classList.add('active');
-        navBrowse.classList.remove('active');
-        paginationControls.style.display = 'none'; // Hide pagination in collection (for now)
-        // In collection view, we want to show owned cards. 
+        ensureGridVisible();
         filterCurrentCards();
+    } else if (viewName === 'decks') {
+        navDecks.classList.add('active');
+        renderDecksView();
+    } else if (viewName === 'deck-detail') {
+        navDecks.classList.add('active');
+        renderDeckDetailView();
     }
 }
 
 function openModal(card) {
-    renderCardModal(card, modalBody, state.collectionManager, () => {
-        // If in collection view, refresh list. If browse, maybe not needed unless we show owned status?
-        // Updating owned status in browse list would require re-rendering the specific card or all.
-        // For simplicity, let's re-render the visible list if in browse, or filter if in collection.
+    renderCardModal(card, modalBody, state.collectionManager, state.deckManager, () => { // Pass deckManager
+        // On update callback
         if (state.view === 'collection') {
             filterCurrentCards();
-        } else {
-            // In browse, just update the owned badge on the specific card in the grid if possible
-            // Or re-render everything (might be heavy).
-            // Let's just update progress UI for now. Re-rendering `state.cards` from memory is cheap enough?
-            // Actually re-rendering 20-40 cards is fine.
+        } else if (state.view === 'browse') {
+            // Re-render current list to update badges
             renderCardList(state.cards, cardGrid, state.collectionManager, false);
-            // Re-render pagination controls? They stick around.
+            // Restore pagination state if needed?
             const hasMore = state.cards.length < state.allCardSummaries.length;
             renderPaginationControls(paginationControls, hasMore, async () => {
-                const btn = paginationControls.querySelector('button');
-                if (btn) {
-                    btn.textContent = 'Loading...';
-                    btn.disabled = true;
-                }
                 await loadMoreCards();
             });
         }
@@ -253,6 +385,7 @@ function openModal(card) {
 }
 
 function filterCurrentCards() {
+    ensureGridVisible();
     let filtered = [];
 
     if (state.view === 'collection') {
@@ -262,12 +395,15 @@ function filterCurrentCards() {
         filtered = ownedCards.filter(card => {
             const matchName = !state.filters.name || card.name.toLowerCase().includes(state.filters.name.toLowerCase());
             const matchRarity = !state.filters.rarity || card.rarity === state.filters.rarity;
-            return matchName && matchRarity;
+            const matchSet = !state.filters.set || (card.set && (typeof card.set === 'string' ? card.set === state.filters.set : card.set.id === state.filters.set));
+            return matchName && matchRarity && matchSet;
         });
 
-        renderCardList(filtered, cardGrid, state.collectionManager);
+        // Pagination for collection? 
+        // For now just render all (performance might be issue if > 1000 cards)
+        renderCardList(filtered, document.getElementById('card-grid'), state.collectionManager);
+        document.getElementById('pagination-controls').innerHTML = ''; // No pagination in collection for now
     }
-    // Browse view handled by loadCards
 }
 
 // Start App

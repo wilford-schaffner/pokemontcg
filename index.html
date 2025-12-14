@@ -16,10 +16,14 @@
             <nav class="main-nav">
                 <a href="#" id="nav-browse" class="nav-link active">Browse</a>
                 <a href="#" id="nav-collection" class="nav-link">My Collection</a>
+                <a href="#" id="nav-decks" class="nav-link">Decks</a>
                 <a href="#" id="nav-sets" class="nav-link">Sets</a>
             </nav>
-            <div class="user-progress" id="user-progress">
-                <!-- Progress injected here -->
+            <div class="header-right">
+                <div class="user-progress" id="user-progress">
+                    <!-- Progress injected here -->
+                </div>
+                <button id="btn-settings" class="btn-icon" aria-label="Settings">⚙️</button>
             </div>
         </div>
     </header>
@@ -45,22 +49,46 @@
             </div>
         </section>
 
-        <section id="card-grid" class="card-grid">
-            <!-- Cards will be populated here -->
-            <div class="loading-spinner">Loading cards...</div>
-        </section>
+        <!-- Dynamic Content Area -->
+        <div id="content-area">
+            <section id="card-grid" class="card-grid">
+                <!-- Cards will be populated here -->
+                <div class="loading-spinner">Loading cards...</div>
+            </section>
 
-        <div id="pagination-controls" class="pagination-controls">
-            <!-- Pagination buttons -->
+            <div id="pagination-controls" class="pagination-controls">
+                <!-- Pagination buttons -->
+            </div>
         </div>
     </main>
 
     <!-- Card Detail Modal -->
     <div id="card-modal" class="modal hidden">
         <div class="modal-content">
-            <span class="close-modal">&times;</span>
+            <button class="close-modal" aria-label="Close Modal">&times;</button>
             <div id="modal-body">
                 <!-- Modal content injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content settings-content">
+            <button class="close-modal" id="close-settings" aria-label="Close Settings">&times;</button>
+            <h2>Settings</h2>
+            <div class="settings-group">
+                <h3>Appearance</h3>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="toggle-dark-mode">
+                    <span class="slider"></span>
+                    <span class="label-text">Dark Mode</span>
+                </label>
+            </div>
+            <div class="settings-group">
+                <h3>Data Management</h3>
+                <button id="btn-reset-data" class="btn-danger">Reset All Data</button>
+                <p class="warning-text">Warning: This will delete your collection and decks.</p>
             </div>
         </div>
     </div>
