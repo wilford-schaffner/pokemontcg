@@ -21,8 +21,8 @@ const state = {
 
 // DOM Elements
 const contentArea = document.getElementById('content-area');
-const cardGrid = document.getElementById('card-grid');
-const paginationControls = document.getElementById('pagination-controls');
+let cardGrid = document.getElementById('card-grid');
+let paginationControls = document.getElementById('pagination-controls');
 const searchInput = document.getElementById('search-input');
 const setFilter = document.getElementById('set-filter');
 const rarityFilter = document.getElementById('rarity-filter');
@@ -147,9 +147,9 @@ function ensureGridVisible() {
             </section>
             <div id="pagination-controls" class="pagination-controls"></div>
         `;
-        // Re-assign references (cheeky but needed if we destroy them)
-        // Actually, better to just hide/show sections if possible, but our current UI replaces content.
-        // Let's stick to replacing contentArea.innerHTML for different views.
+        // Re-assign references using the new DOM elements
+        cardGrid = document.getElementById('card-grid');
+        paginationControls = document.getElementById('pagination-controls');
     }
 }
 
@@ -293,7 +293,7 @@ function setupEventListeners() {
     // The event listener is on `cardGrid`. We need to attach it to `contentArea`?
     // Or just generic document listener for `.card-item`?
     // Let's move it to `contentArea` or document.
-    document.addEventListener('click', (e) => {
+    contentArea.addEventListener('click', (e) => {
         const cardItem = e.target.closest('.card-item');
         if (cardItem) {
             // Check if inside a restricted area?
